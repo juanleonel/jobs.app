@@ -1,18 +1,25 @@
 const express = require('express');
-const { tryConnect } = require('./config/db')
+const cookieParser = require('cookie-parser');
+const { BASE_URL, DEFAULT_PORT } = require('./config/config');
+const { tryConnect } = require('./config/db');
+const auth = require('./middlewares/auth.middleware');
 const indexRouter = require('./routes/index.routes');
 const termRouter = require('./routes/term.routes');
 const categoryRouter = require('./routes/category.routes');
 const userRouter = require('./routes/user.routes');
-
-const app = express();
+const port = process.env.PORT || DEFAULT_PORT;
+const apiBase = process.env.API || BASE_URL;
 
 tryConnect();
+const app = express();
+app.use(express.json());
+app.use(cookieParser());
+// auth
+auth.setMiddleware(app)
+app.post('/login', auth.authenticate, auth.login)
 
-const port = process.env.PORT || 3000;
-const apiBase = process.env.API || '/api';
-
-app.use('/', indexRouter);
+// routes
+app.use('/', auth.ensureAdmin, indexRouter);
 app.use(apiBase, termRouter);
 app.use(apiBase, categoryRouter);
 app.use(apiBase, userRouter);

@@ -1,14 +1,14 @@
-const { ADMIN_PASSWORD, SESSION_SECRET } = require('../config/config');
+const { ADMIN_EMAIL, ADMIN_PASSWORD, SESSION_SECRET } = require('../config/config');
 const expressSession = require('express-session');
 const passport = require('passport');
 const Strategy = require('passport-local').Strategy;
 
 passport.use(
   new Strategy((username, password, done) => {
-    const isAdmin = username === 'admin' && password === ADMIN_PASSWORD;
+    const isAdmin = username === ADMIN_EMAIL && password === ADMIN_PASSWORD;
 
     if (isAdmin) {
-      return done(null,  { username: 'admin' });
+      return done(null,  { username: ADMIN_EMAIL });
     }
 
     return done(null, false);
@@ -29,7 +29,7 @@ function login(req, res, next) {
 }
 
 function ensureAdmin(req, res, next) {
-  const isAdmin = req.user && req.user.username === 'admin';
+  const isAdmin = req.user && req.user.username === ADMIN_EMAIL;
 
   if (isAdmin) return next();
 
@@ -47,7 +47,7 @@ function session() {
 }
 
 function ensureAdmin(req, res, next) {
-  const isAdmin = req.user && req.user.username === 'admin';
+  const isAdmin = req.user && req.user.username === ADMIN_EMAIL;
   if (isAdmin) return next();
 
   return res.status(401).json({ error: 'Unauthorized' });

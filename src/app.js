@@ -1,5 +1,6 @@
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const cors = require('cors');
 const { BASE_URL, DEFAULT_PORT } = require('./config/config');
 const { tryConnect } = require('./config/db');
 const auth = require('./middlewares/auth.middleware');
@@ -12,11 +13,12 @@ const apiBase = process.env.API || BASE_URL;
 
 tryConnect();
 const app = express();
+app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
 // auth
 auth.setMiddleware(app)
-app.post('/login', auth.authenticate, auth.login)
+app.post(apiBase + '/login', auth.authenticate, auth.login)
 
 // routes
 app.use('/', auth.ensureAdmin, indexRouter);

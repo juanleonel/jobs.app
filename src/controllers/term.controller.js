@@ -10,7 +10,7 @@ async function getTermsController(req, res) {
   try {
     const items = await getAllTerms();
 
-    return res.json(items);
+    return res.json({ item: items,  message: 'Terms found'});
   } catch (error) {
     return res.status(500).json({
       message: error.message

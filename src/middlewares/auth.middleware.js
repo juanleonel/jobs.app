@@ -1,56 +1,50 @@
-const { ADMIN_EMAIL, ADMIN_PASSWORD, SESSION_SECRET } = require('../config/config');
-const expressSession = require('express-session');
-const passport = require('passport');
-const Strategy = require('passport-local').Strategy;
+const passport = require('passport')
+const Strategy = require('passport-local').Strategy
+const expressSession = require('express-session')
 
-passport.use(
-  new Strategy((username, password, done) => {
-    const isAdmin = username === ADMIN_EMAIL && password === ADMIN_PASSWORD;
+const sessionSecret = process.env.SESSION_SECRET || 'mark it zero'
+const adminPassword = process.env.ADMIN_PASSWORD || '123'
+const authenticate = passport.authenticate('local')
+passport.use(adminStrategy())
+passport.serializeUser((user, cb) => cb(null, user))
+passport.deserializeUser((user, cb) => cb(null, user))
 
+function adminStrategy() {
+  return new Strategy((username, password, cb) => {
+    const isAdmin = username === 'admin' && password === adminPassword
+    
     if (isAdmin) {
-      return done(null,  { username: ADMIN_EMAIL });
+      return cb(null, { username: 'admin' })
     }
-
-    return done(null, false);
+    
+    return cb(null, false)
   })
-);
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
-const authenticate = passport.authenticate('local');
+}
 
-function setMiddleware (app) {
-  app.use(session());
-  app.use(passport.initialize());
-  app.use(passport.session());
+function setMiddleware(app) {
+  app.use(expressSession({
+    secret: sessionSecret,
+    resave: false,
+    saveUninitialized: false
+  }))
+  app.use(passport.initialize())
+  app.use(passport.session())
 }
 
 function login(req, res, next) {
-  return res.json({ success: true });
+  return res.json({ success: true })
 }
 
 function ensureAdmin(req, res, next) {
-  const isAdmin = req.user && req.user.username === ADMIN_EMAIL;
+  const isAdmin = req.user && req.user.username === 'admin'
+  
+  if (isAdmin) {
+    return next()
+  }
+  const err = new Error('Unauthorized')
+  err.statusCode = 401
 
-  if (isAdmin) return next();
-
-  const err = new Error('Unauthorized');
-  err.statusCode = 401;
-  return next(err);
-}
-
-function session() {
-  return expressSession({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false
-  });
-}
-
-function ensureAdmin(req, res, next) {
-  const isAdmin = req.user && req.user.username === ADMIN_EMAIL;
-  if (isAdmin) return next();
-
-  return res.status(401).json({ error: 'Unauthorized' });
+  return next(err)
 }
 
 module.exports = {

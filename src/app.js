@@ -1,6 +1,7 @@
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const cors = require('cors')
+const { STATUS_CODES } = require('http')
 const { BASE_URL, DEFAULT_PORT } = require('./config/config');
 const { tryConnect } = require('./config/db');
 const auth = require('./middlewares/auth.middleware');
@@ -17,7 +18,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser())
-auth.setMiddleware(app);
+
 app.get('/test', ensureAdmin, (req, res) => res.json({ test: true }))
 app.post('/login', auth.authenticate, auth.login)
 
@@ -28,14 +29,13 @@ app.use(apiBase, categoryRouter);
 app.use(apiBase, userRouter);
 
 function handleError (err, req, res, next) {
-  console.error(err)
-
   if (res.headersSent) {
     return next(err)
   }
 
   const statusCode = err.statusCode || 500
-  const errorMessage = 'Internal Error'
+  const errorMessage = STATUS_CODES[statusCode] || 'Internal Error'
+
   return res.status(statusCode).json({ error: errorMessage })
 }
 

@@ -24,12 +24,12 @@ async function getAllCategories() {
  * @returns {CategoryDTO} The category object mapped.
  */
 function mapCategory(data) {
- const item = new CategoryDTO();
- item.id = data.id;
- item.name = data.name;
- item.description = data.description;
+  const item = new CategoryDTO();
+  item.id = data.id;
+  item.name = data.name;
+  item.description = data.description;
 
- return user;
+  return user;
 }
 
 module.exports = {

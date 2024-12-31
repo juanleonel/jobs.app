@@ -1,4 +1,5 @@
 const { db } = require('../config/db');
+const { hashPassword } = require('../utils/hash');
 const UserDTO = require('../dto/userDto');
 
 const USER_TABLE = 'user';
@@ -12,6 +13,21 @@ async function getUserById(id) {
   const queryResult = await db(USER_TABLE).select().where({
     'id': id
   });
+
+  if (queryResult.length) {
+    return mapUser(queryResult[0])
+  }
+
+  return null;
+}
+
+/**
+ * Gets the specific user by username.
+ * @param {string} name - The current username.
+ * @returns {Promise<UserDTO>} user found it.
+ */
+async function getUserByName(name) {
+  const queryResult = await db(USER_TABLE).select().where({ 'name': name });
 
   if (queryResult.length) {
     return mapUser(queryResult[0])
@@ -44,12 +60,13 @@ async function getUserById(id) {
  * @returns {Promise<UserDTO>} The user object created.
  */
 async function addUser(user) {
+  const password = await hashPassword(user.password)
   const queryResult = await db(USER_TABLE).insert({
     name: user.name,
     lastName: user.lastName,
     email: user.email,
-    password: user.password
-  }).returning(['id']);
+    password: password
+  }).returning(['id, name, lastName, email, password']);
 
   if (queryResult.length) {
     return mapUser(queryResult[0]);
@@ -80,19 +97,32 @@ function mapUser(data) {
  * @param {UserDTO} user The user will be update.
  */
 async function updateUser(user) {
+  const userFound = await getUserById(user.id)
+  
+  if (!userFound) {
+    throw Error('User not found')
+  }
+
+  let password = userFound.password;
+
+  if (userFound.password !== user.password) {
+    password = await hashPassword(user.password)
+  }
+
   db(USER_TABLE)
   .where({ id: user.id })
   .update({
     name: user.name,
     lastName: user.lastName,
     email: user.email,
-    password: user.password
+    password: password
   });
 }
 
 module.exports = {
   addUser,
   getUserById,
+  getUserByName,
   getAllUsers,
   updateUser
 }

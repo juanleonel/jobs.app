@@ -9,7 +9,6 @@ async function getAllTerms() {
   const queryResult = await db('term')
     .select();
 
-    console.log(queryResult);
   if (queryResult.length) {
     return queryResult.map(item => {
       return mapTerm(item);

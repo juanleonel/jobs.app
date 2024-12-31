@@ -1,61 +1,103 @@
-const { ADMIN_EMAIL, ADMIN_PASSWORD, SESSION_SECRET } = require('../config/config');
-const expressSession = require('express-session');
-const passport = require('passport');
-const Strategy = require('passport-local').Strategy;
+const passport = require('passport')
+const Strategy = require('passport-local').Strategy
+const jwt = require('jsonwebtoken')
+const { getUserByName, getUserById } = require('../services/user.service')
+const { comparePassword } = require('../utils/hash')
+const jwtOpts = { algorithm: 'HS256', expiresIn: '30d' }
 
-passport.use(
-  new Strategy((username, password, done) => {
-    const isAdmin = username === ADMIN_EMAIL && password === ADMIN_PASSWORD;
+const jwtSecret = process.env.JWT_SECRET || 'mark it zero'
+const adminPassword = process.env.ADMIN_PASSWORD || '123'
 
+const authenticate = passport.authenticate('local', { session: false })
+passport.use(adminStrategy())
+
+function adminStrategy() {
+  return new Strategy(async (username, password, cb) => {
+    const isAdmin = username === 'admin' && password === adminPassword
+    
     if (isAdmin) {
-      return done(null,  { username: ADMIN_EMAIL });
+      return cb(null, { username: 'admin', id: '0' })
     }
 
-    return done(null, false);
-  })
-);
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
-const authenticate = passport.authenticate('local');
+    try {
+      const user = await getUserByName(username)
+  
+      if (!user) {
+        return cb(null, false)
+      }
 
-function setMiddleware (app) {
-  app.use(session());
-  app.use(passport.initialize());
-  app.use(passport.session());
+      const isUser = await comparePassword(password, user.password)
+
+      if (isUser) {
+        return cb(null, { username: user.name, id: user.id })
+      }
+    } catch (error) {
+      
+    }
+    
+    return cb(null, false)
+  })
+}
+
+async function handleUserInfo(userName) {
+  try {
+    const user = await getUserByName(userName)
+
+    if (!user) {
+      return 
+    }
+  } catch (error) {
+    
+  }
 }
 
 function login(req, res, next) {
-  return res.json({ success: true });
+  return res.json({ success: true })
 }
 
-function ensureAdmin(req, res, next) {
-  const isAdmin = req.user && req.user.username === ADMIN_EMAIL;
+async function ensureAdmin(req, res, next) {
+  const jwtString = req.headers.authorization || req.cookies.jwt
+  const payload = await verify(jwtString)
 
-  if (isAdmin) return next();
+  if (payload.username === 'admin') {
+    return next()
+  }
 
-  const err = new Error('Unauthorized');
-  err.statusCode = 401;
-  return next(err);
+  const err = new Error('Unauthorized')
+  err.statusCode = 401
+
+  return next(err)
 }
 
-function session() {
-  return expressSession({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false
-  });
+async function sign(payload) {
+  const token = jwt.sign(payload, jwtSecret, jwtOpts)
+
+  return token
 }
 
-function ensureAdmin(req, res, next) {
-  const isAdmin = req.user && req.user.username === ADMIN_EMAIL;
-  if (isAdmin) return next();
+async function verify(jwtString = '') {
+  jwtString = jwtString.replace(/^Bearer /i, '')
 
-  return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const payload = jwt.verify(jwtString, jwtSecret)
+  
+    return payload
+  } catch (err) {
+    err.statusCode = 401
+    throw err
+  }
+}
+
+async function login(req, res, next) {
+  const token = await sign(req.user)
+  const userInfo = await getUserById(req.user.id)
+  res.cookie('jwt', token, { httpOnly: true })
+
+  return res.json({ success: true, token: token, userInfo: userInfo })
 }
 
 module.exports = {
-  setMiddleware,
   authenticate,
-  login,
-  ensureAdmin
+  ensureAdmin,
+  login
 }
